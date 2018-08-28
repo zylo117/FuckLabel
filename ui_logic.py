@@ -3,7 +3,7 @@ import sys
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtCore import Qt, QThread, QEvent
 from PyQt5.QtGui import QImage, QPixmap, QPalette
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QFileDialog
 from ui import Ui_MainWindow
 
 
@@ -21,6 +21,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.mouse.start()
         self.active_labels = []
 
+        self.image_paths = []
+
+        self.loadImg.clicked.connect(self.load_img)
+
     # override the method to track mouse coordinates
     def eventFilter(self, source, event):
         if event.type() == QEvent.MouseMove:
@@ -34,6 +38,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def resizeEvent(self, event):
         return QMainWindow.resizeEvent(self, event)
+
+    def load_img(self):
+        self.image_paths = self.file_select_dialog('选择图片')
+        self.image_paths = self.image_paths[0]
+
+    def file_select_dialog(self, dialog_name, path_select=False, default_path=None, *filter):
+        # filter_str = filter
+        # file_path, current_filter = QFileDialog.getOpenFileNames(self, dialog_name, default_path, "Text Files (*.txt);;All Files (*)")
+        if not path_select:
+            file_path, current_filter = QFileDialog.getOpenFileNames(self, dialog_name, default_path, "Image Files (*.jpg);;All Files (*)")
+            return file_path, current_filter
+        else:
+            path = QFileDialog.getExistingDirectory(self, dialog_name, default_path)
+            return path
 
 
 class MousePos(QThread):
