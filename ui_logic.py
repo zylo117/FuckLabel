@@ -1,6 +1,7 @@
 import sys
 
 import cv2
+import imutils
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtCore import Qt, QThread, QEvent
 from PyQt5.QtGui import QImage, QPixmap, QPalette, QPainter, QPen
@@ -46,6 +47,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.mouse_window_y = 0
         self.mouse.start()
 
+        # init painter
+        self.draw = 'point'
+        self.points = []
+
     def load_next(self, previous=False):
         if previous:
             self.current_image_index -= 1 if self.current_image_index > 0 else 0
@@ -72,33 +77,61 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             img = self.current_img
 
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        height, width, channel = img.shape
-        self.pic_real_h, self.pic_real_w = height, width
-        pile_width = channel * width
-
-        q_image = QImage(img.data, width, height, pile_width, QImage.Format_RGB888)
+        self.pic_real_h, self.pic_real_w = img.shape[:2]
 
         # adapt window
         monitor_width, monitor_height = self.pic.width(), self.pic.height()
         monitor_ratio = monitor_width / monitor_height
-        video_ratio = width / height
+        video_ratio = self.pic_real_w / self.pic_real_h
+        # considering calculation precision error issue, don't use "!=" to judge
         if monitor_ratio - video_ratio > 0.1:
-            # considering calculation precision error issue, don't use "!=" to judge
-            qpix = QPixmap.fromImage(q_image).scaled(width * monitor_height / height, monitor_height)
+            image = imutils.resize(img, height=monitor_height, inter=cv2.INTER_AREA)
+            height, width, channel = image.shape
+            pile_width = channel * width
+            q_image = QImage(image.data, width, height, pile_width, QImage.Format_RGB888)
+            qpix = QPixmap.fromImage(q_image).scaled(width, height, Qt.KeepAspectRatio)
         elif monitor_ratio - video_ratio < 0.1:
-            qpix = QPixmap.fromImage(q_image).scaled(monitor_width, height * monitor_width / width)
+            image = imutils.resize(img, width=monitor_width, inter=cv2.INTER_AREA)
+            height, width, channel = image.shape
+            pile_width = channel * width
+            q_image = QImage(image.data, width, height, pile_width, QImage.Format_RGB888)
+            qpix = QPixmap.fromImage(q_image).scaled(width, height, Qt.KeepAspectRatio)
+
         self.pic.setPixmap(qpix)
 
-    # def paintEvent(self, event):
-    #     self.painter = QPainter()
-    #     self.painter.begin(self)
-    #     pen = QPen(Qt.red, 2, Qt.SolidLine)
-    #     self.painter.setPen(pen)
+    def paintEvent(self, event):
+        self.painter = QPainter()
+        self.painter.begin(self)
+        pen = QPen(Qt.red, 2, Qt.SolidLine)
+        self.painter.setPen(pen)
 
-    def mousePressEvent(self, e):  ##重载一下鼠标点击事件
+        if self.draw == 'point':
+            self.painter.drawPoint(self.mouse_window_x, self.mouse_window_y)
+
+        self.painter.end()
+
+    def mousePressEvent(self, e):
         # 左键按下
         if e.buttons() == QtCore.Qt.LeftButton:
-            print('fuck')
+            print('左')
+        # 右键按下
+        elif e.buttons() == QtCore.Qt.RightButton:
+            print('右')
+        # 中键按下
+        elif e.buttons() == QtCore.Qt.MidButton:
+            print('中')
+
+    def mouseDoubleClickEvent(self, e):
+        # 左键双击
+        if e.buttons() == QtCore.Qt.LeftButton:
+            self.points.append([self.mouse_window_x, self.mouse_window_y])
+            print(self.points)
+            self.update()
+
+    def keyPressEvent(self, e):
+        if e.key() == QtCore.Qt.Key_Escape:
+            self.points = []
+            print(self.points, 'clear')
 
     # override the method to track mouse coordinates
     def eventFilter(self, source, event):
